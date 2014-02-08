@@ -1,0 +1,13 @@
+name: EmoteMe
+main: com.worldcretornica.emoteme.EmoteMe
+version: '0.2'
+author: ZachBora
+description: >
+             Adds emote commands to your server
+commands:
+    emoteme:
+        description: List the possible emote commands
+        usage: /emoteme
+    emoteme reload:
+        description: Reloads the configuration
+        usage: /emoteme reload
