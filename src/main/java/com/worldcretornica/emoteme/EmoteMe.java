@@ -6,19 +6,28 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
+import lilypad.client.connect.api.Connect;
+import lilypad.client.connect.api.event.EventListener;
+import lilypad.client.connect.api.event.MessageEvent;
+import lilypad.client.connect.api.request.impl.MessageRequest;
+import lilypad.client.connect.api.result.FutureResultListener;
+import lilypad.client.connect.api.result.StatusCode;
+import lilypad.client.connect.api.result.impl.MessageResult;
 
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -26,9 +35,10 @@ public class EmoteMe extends JavaPlugin {
 
 	public static String NAME;
 	public static String PREFIX;
-	public static Logger logger = null;
 
 	public static Map<String, EmoteMeCommand> emotelist = null;
+	
+	private final static String channelname = "wcEmoteMe";
 
 	@Override
 	public void onDisable() 
@@ -36,17 +46,141 @@ public class EmoteMe extends JavaPlugin {
 		emotelist = null;
 		PREFIX = null;
 		NAME = null;
-		logger = null;
 	}
 
 	@Override
 	public void onEnable() {
-		logger = this.getLogger();
 
 		SetupConfig();
 
-		getServer().getPluginManager().registerEvents(new EmoteMeListener(), this);
+		getServer().getPluginManager().registerEvents(new EmoteMeListener(this), this);
+		
+		getConnect().registerEvents(this);
 	}
+	
+	private Connect getConnect() {
+	    return super.getServer().getServicesManager().getRegistration(Connect.class).getProvider();
+    }
+	
+	
+	public void broadcastSender(final String text, final String sender) {
+        try {
+            Connect connect = getConnect();
+
+            connect.request(new MessageRequest("", channelname, "SENDER;" + text.replace(";", "") + ";" + sender.replace(";", ""))).registerListener(new FutureResultListener<MessageResult>() {
+                public void onResult(MessageResult redirectResult) {
+                    if (redirectResult.getStatusCode() == StatusCode.SUCCESS) {
+                        return;
+                    }
+                }
+            });
+
+        } catch (Exception e) {
+        }
+    }
+	
+	public void broadcastRecipient(final String text, final String recipient) {
+        try {
+            Connect connect = getConnect();
+
+            connect.request(new MessageRequest("", channelname, "RECIPIENT;" + text.replace(";", "") + ";" + recipient.replace(";", ""))).registerListener(new FutureResultListener<MessageResult>() {
+                public void onResult(MessageResult redirectResult) {
+                    if (redirectResult.getStatusCode() == StatusCode.SUCCESS) {
+                        return;
+                    }
+                }
+            });
+
+        } catch (Exception e) {
+        }
+    }
+	
+	public void broadcastOthers(final String text, final String sender, final String recipient) {
+        try {
+            Connect connect = getConnect();
+
+            connect.request(new MessageRequest("", channelname, "ALL;" + text.replace(";", "") + ";" + sender.replace(";", "") + ";" + recipient.replace(";", ""))).registerListener(new FutureResultListener<MessageResult>() {
+                public void onResult(MessageResult redirectResult) {
+                    if (redirectResult.getStatusCode() == StatusCode.SUCCESS) {
+                        return;
+                    }
+                }
+            });
+
+        } catch (Exception e) {
+        }
+    }
+	
+	@EventListener
+    public void onMessage(MessageEvent event) {
+        if (event.getChannel().equals(channelname)) {
+            try {
+                String[] tokens;
+                
+                tokens = event.getMessageAsString().split(";");
+                
+                String action = tokens[0];
+                String text;
+                String sender;
+                String recipient;
+                
+                switch (action) {
+                case "SENDER":
+                    if(tokens.length >= 3) {
+                        text = tokens[1];
+                        sender = tokens[2];
+                        
+                        Player p = Bukkit.getPlayerExact(sender);
+                        
+                        if(p != null) {
+                            p.sendMessage(ChatColor.translateAlternateColorCodes('&', text));
+                        }
+                    }
+                    break;
+                case "RECIPIENT":
+                    if(tokens.length >= 3) {
+                        text = tokens[1];
+                        recipient = tokens[2];
+                        
+                        Player p = Bukkit.getPlayerExact(recipient);
+                        
+                        if(p != null) {
+                            p.sendMessage(ChatColor.translateAlternateColorCodes('&', text));
+                        }
+                    }
+                    break;
+                case "ALL":
+                    if(tokens.length >= 3) {
+                        text = tokens[1];
+                        sender = tokens[2];
+                        
+                        if(tokens.length >= 4) {
+                            recipient = tokens[3];
+                        } else {
+                            recipient = "";
+                        }
+                        
+                        Player p1 = Bukkit.getPlayerExact(sender);
+                        Player p2 = Bukkit.getPlayerExact(recipient);
+                        
+                        for(Player pl : Bukkit.getOnlinePlayers())
+                        {
+                            if((p1 == null || !pl.equals(p1)) && (p2 == null || !pl.equals(p2)))
+                            {
+                                pl.sendMessage(ChatColor.translateAlternateColorCodes('&', text));
+                            }
+                        }
+                    }
+                    break;
+                }
+
+            } catch (UnsupportedEncodingException e1) {
+                e1.printStackTrace();
+            }
+        }
+
+    }
+	
 	
 	@Override
 	public boolean onCommand(CommandSender sender, Command command,	String label, String[] args)
@@ -141,10 +275,10 @@ public class EmoteMe extends JavaPlugin {
 			config.load(configfile);
 		} catch (FileNotFoundException e) {
 		} catch (IOException e) {
-			logger.severe(PREFIX + "can't read configuration file");
+			getLogger().severe(PREFIX + "can't read configuration file");
 			e.printStackTrace();
 		} catch (InvalidConfigurationException e) {
-			logger.severe(PREFIX + "invalid configuration format");
+		    getLogger().severe(PREFIX + "invalid configuration format");
 			e.printStackTrace();
 		}
 
@@ -152,8 +286,6 @@ public class EmoteMe extends JavaPlugin {
 
 		if (commandlist != null) {
 			emotelist = new HashMap<String, EmoteMeCommand>();
-
-			logger.info("not null");
 
 			String currentcommand = "";
 			String currentsender = "";
@@ -178,7 +310,7 @@ public class EmoteMe extends JavaPlugin {
 						if (!emotelist.containsKey(currentcommand)) {
 							emotelist.put(currentcommand, newcommand);
 						} else {
-							logger.warning(PREFIX + " emote command '" + currentcommand + "' was already registered.");
+						    getLogger().warning(PREFIX + " emote command '" + currentcommand + "' was already registered.");
 						}
 					}
 
@@ -219,7 +351,7 @@ public class EmoteMe extends JavaPlugin {
 				if (!emotelist.containsKey(currentcommand)) {
 					emotelist.put(currentcommand, newcommand);
 				} else {
-					logger.warning(PREFIX + " emote command '" + currentcommand + "' was already registered.");
+				    getLogger().warning(PREFIX + " emote command '" + currentcommand + "' was already registered.");
 				}
 			}
 
@@ -440,8 +572,8 @@ public class EmoteMe extends JavaPlugin {
 			
 			writer.close();
 		}catch (IOException e){
-			logger.severe("[" + NAME + "] Unable to create config file : " + file.getName() + "!");
-			logger.severe(e.getMessage());
+		    getLogger().severe("[" + NAME + "] Unable to create config file : " + file.getName() + "!");
+		    getLogger().severe(e.getMessage());
 		} finally {                      
 			if (writer != null) try {
 				writer.close();

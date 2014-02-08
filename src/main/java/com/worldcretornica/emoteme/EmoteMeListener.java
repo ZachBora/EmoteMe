@@ -11,6 +11,11 @@ import org.bukkit.event.server.ServerCommandEvent;
 
 public class EmoteMeListener implements Listener
 {
+    private EmoteMe plugin;
+    
+    public EmoteMeListener(EmoteMe instance) {
+        plugin = instance;
+    }
 
 	@EventHandler(ignoreCancelled = true, priority = EventPriority.HIGH)
     public void onPlayerCommandPreprocess(PlayerCommandPreprocessEvent event) 
@@ -96,20 +101,20 @@ public class EmoteMeListener implements Listener
     					recipienttext = recipienttext.replace("%" + ctr, args[ctr]);
     				}
     				
-    				selftext = ChatColor.translateAlternateColorCodes('&', selftext);
-    				othertext = ChatColor.translateAlternateColorCodes('&', othertext);
-    				recipienttext = ChatColor.translateAlternateColorCodes('&', recipienttext);
+    				//selftext = ChatColor.translateAlternateColorCodes('&', selftext);
+    				//othertext = ChatColor.translateAlternateColorCodes('&', othertext);
+    				//recipienttext = ChatColor.translateAlternateColorCodes('&', recipienttext);
     				
     				if(p == null)
     				{
-    					EmoteMe.logger.info(ChatColor.stripColor(selftext));
+    				    plugin.getLogger().info(ChatColor.stripColor(selftext));
     				}
     				else
     				{
-    					EmoteMe.logger.info(ChatColor.stripColor(othertext));
+    					plugin.getLogger().info(ChatColor.stripColor(othertext));
     				}
     				
-    				for(Player pl : Bukkit.getOnlinePlayers())
+    				/*for(Player pl : Bukkit.getOnlinePlayers())
     				{
     					if(p != null && pl.equals(p))
     					{
@@ -123,7 +128,15 @@ public class EmoteMeListener implements Listener
     					{
     						pl.sendMessage(othertext);
     					}
+    				}*/
+    				
+    				if(args.length > 1) {
+    				    plugin.broadcastOthers(othertext, p.getName(), args[1]);
+    				    plugin.broadcastRecipient(recipienttext, args[1]);
+    				} else {
+    				    plugin.broadcastOthers(othertext, p.getName(), "");
     				}
+    				plugin.broadcastSender(selftext, p.getName());
     				
     				return true;
     			}

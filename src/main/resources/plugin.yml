@@ -1,7 +1,8 @@
 name: EmoteMe
 main: com.worldcretornica.emoteme.EmoteMe
-version: '0.2'
+version: '0.3'
 author: ZachBora
+depend: [LilyPad-Connect]
 description: >
              Adds emote commands to your server
 commands:
